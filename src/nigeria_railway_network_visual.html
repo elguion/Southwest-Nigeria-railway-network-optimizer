@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Southwest Nigeria Railway Network Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            color: #ffd700;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 10px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.active {
+            background: linear-gradient(45deg, #10ac84, #00d2d3);
+        }
+        
+        select {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-weight: bold;
+        }
+        
+        label {
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .canvas-container {
+            flex: 2;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: inset 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        #railwayCanvas {
+            border: 3px solid #2c3e50;
+            border-radius: 10px;
+            background: #ecf0f1;
+            cursor: crosshair;
+        }
+        
+        .info-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .info-section {
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .info-section h3 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #ffd700;
+            padding-bottom: 5px;
+        }
+        
+        .station-list {
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .result-output {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            color: #00ff00;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        .status-bar {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚂 Southwest Nigeria Railway Network Visualizer</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <button id="showOriginalBtn" class="active">Show Original Network</button>
+                <button id="runMSTBtn">Build MST Network</button>
+                <button id="clearBtn">Reset View</button>
+            </div>
+            
+            <div class="control-group">
+                <label for="startStation">Shortest Path:</label>
+                <select id="startStation">
+                    <option value="">From Station</option>
+                </select>
+                <select id="endStation">
+                    <option value="">To Station</option>
+                </select>
+                <button id="findPathBtn">Find Route</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="railwayCanvas" width="800" height="600"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3498db;"></div>
+                        <span>Original Connections</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e74c3c;"></div>
+                        <span>MST Connections</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f39c12;"></div>
+                        <span>Shortest Path</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2ecc71; width: 12px; height: 12px; border-radius: 50%;"></div>
+                        <span>Railway Stations</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <div class="info-section">
+                    <h3>Railway Stations</h3>
+                    <div class="station-list" id="stationList"></div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>Algorithm Results</h3>
+                    <div class="result-output" id="resultOutput">Click on buttons to see results...</div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>Network Statistics</h3>
+                    <div id="networkStats">
+                        <div>Total Stations: <span id="totalStations">12</span></div>
+                        <div>Original Connections: <span id="originalConnections">19</span></div>
+                        <div>MST Connections: <span id="mstConnections">-</span></div>
+                        <div>Total MST Length: <span id="mstLength">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar" id="statusBar">
+            Ready - Click 'Show Original Network' to visualize the railway connections
+        </div>
+    </div>
+
+    <script>
+        class NigerianRailwayVisualizer {
+            constructor() {
+                this.canvas = document.getElementById('railwayCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.stations = [];
+                this.connections = [];
+                this.mstConnections = [];
+                this.shortestPath = [];
+                this.distanceMatrix = [];
+                this.currentView = 'original';
+                
+                this.initializeNetwork();
+                this.setupEventListeners();
+                this.populateStationDropdowns();
+                this.drawNetwork();
+            }
+            
+            initializeNetwork() {
+                // Nigerian railway stations with realistic positions on the map
+                this.stations = [
+                    { id: 0, name: "Lagos_Central", x: 120, y: 480, fullName: "Lagos Central Terminal" },
+                    { id: 1, name: "Ibadan_Main", x: 280, y: 380, fullName: "Ibadan Main Station" },
+                    { id: 2, name: "Abeokuta_Junction", x: 200, y: 420, fullName: "Abeokuta Junction" },
+                    { id: 3, name: "Ilorin_Terminal", x: 380, y: 280, fullName: "Ilorin Terminal" },
+                    { id: 4, name: "Ogbomoso_Station", x: 340, y: 320, fullName: "Ogbomoso Station" },
+                    { id: 5, name: "Oshogbo_Hub", x: 420, y: 360, fullName: "Oshogbo Hub" },
+                    { id: 6, name: "Akure_Depot", x: 520, y: 420, fullName: "Akure Depot" },
+                    { id: 7, name: "Ado_Ekiti_Stop", x: 480, y: 380, fullName: "Ado-Ekiti Stop" },
+                    { id: 8, name: "Ikeja_Connect", x: 140, y: 460, fullName: "Ikeja Connect" },
+                    { id: 9, name: "Sagamu_Point", x: 180, y: 450, fullName: "Sagamu Point" },
+                    { id: 10, name: "Oyo_Classic", x: 300, y: 350, fullName: "Oyo Classic" },
+                    { id: 11, name: "Ile_Ife_Heritage", x: 390, y: 400, fullName: "Ile-Ife Heritage" }
+                ];
+                
+                // Original railway connections with distances
+                this.connections = [
+                    { from: 0, to: 2, distance: 64.5 },   // Lagos-Abeokuta
+                    { from: 0, to: 8, distance: 23.7 },   // Lagos-Ikeja
+                    { from: 0, to: 9, distance: 46.2 },   // Lagos-Sagamu
+                    { from: 0, to: 1, distance: 128.2 },  // Lagos-Ibadan
+                    { from: 1, to: 4, distance: 91.3 },   // Ibadan-Ogbomoso
+                    { from: 1, to: 10, distance: 54.8 },  // Ibadan-Oyo
+                    { from: 1, to: 5, distance: 89.7 },   // Ibadan-Oshogbo
+                    { from: 1, to: 2, distance: 74.1 },   // Ibadan-Abeokuta
+                    { from: 2, to: 8, distance: 67.4 },   // Abeokuta-Ikeja
+                    { from: 2, to: 9, distance: 52.9 },   // Abeokuta-Sagamu
+                    { from: 4, to: 3, distance: 83.6 },   // Ogbomoso-Ilorin
+                    { from: 4, to: 5, distance: 47.8 },   // Ogbomoso-Oshogbo
+                    { from: 5, to: 6, distance: 114.2 },  // Oshogbo-Akure
+                    { from: 5, to: 11, distance: 76.3 },  // Oshogbo-Ile-Ife
+                    { from: 6, to: 7, distance: 52.1 },   // Akure-Ado-Ekiti
+                    { from: 11, to: 7, distance: 89.4 },  // Ile-Ife-Ado-Ekiti
+                    { from: 10, to: 4, distance: 38.5 },  // Oyo-Ogbomoso
+                    { from: 8, to: 9, distance: 34.7 },   // Ikeja-Sagamu
+                    { from: 3, to: 5, distance: 97.2 }    // Ilorin-Oshogbo
+                ];
+                
+                this.initializeDistanceMatrix();
+                this.displayStationList();
+            }
+            
+            initializeDistanceMatrix() {
+                const n = this.stations.length;
+                this.distanceMatrix = Array(n).fill(null).map(() => Array(n).fill(Infinity));
+                
+                // Initialize diagonal to 0
+                for (let i = 0; i < n; i++) {
+                    this.distanceMatrix[i][i] = 0;
+                }
+                
+                // Fill in direct connections
+                this.connections.forEach(conn => {
+                    this.distanceMatrix[conn.from][conn.to] = conn.distance;
+                    this.distanceMatrix[conn.to][conn.from] = conn.distance;
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('showOriginalBtn').addEventListener('click', () => this.showOriginalNetwork());
+                document.getElementById('runMSTBtn').addEventListener('click', () => this.runMSTAlgorithm());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearView());
+                document.getElementById('findPathBtn').addEventListener('click', () => this.findShortestPath());
+            }
+            
+            populateStationDropdowns() {
+                const startSelect = document.getElementById('startStation');
+                const endSelect = document.getElementById('endStation');
+                
+                this.stations.forEach(station => {
+                    const option1 = new Option(station.name, station.id);
+                    const option2 = new Option(station.name, station.id);
+                    startSelect.add(option1);
+                    endSelect.add(option2);
+                });
+            }
+            
+            displayStationList() {
+                const stationList = document.getElementById('stationList');
+                let listHTML = '';
+                this.stations.forEach(station => {
+                    listHTML += `<div><strong>${station.id}:</strong> ${station.fullName}</div>`;
+                });
+                stationList.innerHTML = listHTML;
+            }
+            
+            showOriginalNetwork() {
+                this.currentView = 'original';
+                this.updateButtons('showOriginalBtn');
+                this.drawNetwork();
+                this.updateStatus('Showing original railway network connections');
+            }
+            
+            runMSTAlgorithm() {
+                this.currentView = 'mst';
+                this.mstConnections = this.kruskalMST();
+                this.updateButtons('runMSTBtn');
+                this.drawNetwork();
+                this.displayMSTResults();
+                
+                document.getElementById('mstConnections').textContent = this.mstConnections.length;
+                const totalLength = this.mstConnections.reduce((sum, conn) => sum + conn.distance, 0);
+                document.getElementById('mstLength').textContent = `${totalLength.toFixed(1)} km`;
+            }
+            
+            kruskalMST() {
+                const edges = [...this.connections].sort((a, b) => a.distance - b.distance);
+                const parent = Array(this.stations.length).fill(null).map((_, i) => i);
+                const rank = Array(this.stations.length).fill(0);
+                const mst = [];
+                
+                const find = (x) => {
+                    if (parent[x] !== x) {
+                        parent[x] = find(parent[x]);
+                    }
+                    return parent[x];
+                };
+                
+                const union = (x, y) => {
+                    const px = find(x);
+                    const py = find(y);
+                    if (rank[px] < rank[py]) {
+                        parent[px] = py;
+                    } else if (rank[px] > rank[py]) {
+                        parent[py] = px;
+                    } else {
+                        parent[py] = px;
+                        rank[px]++;
+                    }
+                };
+                
+                for (const edge of edges) {
+                    if (find(edge.from) !== find(edge.to)) {
+                        union(edge.from, edge.to);
+                        mst.push(edge);
+                        if (mst.length === this.stations.length - 1) break;
+                    }
+                }
+                
+                return mst;
+            }
+            
+            findShortestPath() {
+                const startId = parseInt(document.getElementById('startStation').value);
+                const endId = parseInt(document.getElementById('endStation').value);
+                
+                if (isNaN(startId) || isNaN(endId) || startId === endId) {
+                    this.updateStatus('Please select different start and end stations');
+                    return;
+                }
+                
+                this.floydWarshall();
+                const path = this.reconstructPath(startId, endId);
+                
+                if (path.length === 0) {
+                    this.updateStatus('No path found between selected stations');
+                    return;
+                }
+                
+                this.shortestPath = path;
+                this.currentView = 'shortest';
+                this.drawNetwork();
+                this.displayShortestPathResult(startId, endId, path);
+            }
+            
+            floydWarshall() {
+                const n = this.stations.length;
+                this.shortestDistances = this.distanceMatrix.map(row => [...row]);
+                this.nextStation = Array(n).fill(null).map(() => Array(n).fill(-1));
+                
+                // Initialize next station matrix
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        if (i !== j && this.shortestDistances[i][j] !== Infinity) {
+                            this.nextStation[i][j] = j;
+                        }
+                    }
+                }
+                
+                // Floyd-Warshall algorithm
+                for (let k = 0; k < n; k++) {
+                    for (let i = 0; i < n; i++) {
+                        for (let j = 0; j < n; j++) {
+                            if (this.shortestDistances[i][k] + this.shortestDistances[k][j] < this.shortestDistances[i][j]) {
+                                this.shortestDistances[i][j] = this.shortestDistances[i][k] + this.shortestDistances[k][j];
+                                this.nextStation[i][j] = this.nextStation[i][k];
+                            }
+                        }
+                    }
+                }
+            }
+            
+            reconstructPath(start, end) {
+                if (this.nextStation[start][end] === -1) return [];
+                
+                const path = [start];
+                let current = start;
+                
+                while (current !== end) {
+                    current = this.nextStation[current][end];
+                    path.push(current);
+                }
+                
+                return path;
+            }
+            
+            clearView() {
+                this.currentView = 'clear';
+                this.shortestPath = [];
+                this.updateButtons('clearBtn');
+                this.drawNetwork();
+                this.updateStatus('View cleared - Ready for new visualization');
+            }
+            
+            drawNetwork() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw connections based on current view
+                if (this.currentView === 'original') {
+                    this.drawConnections(this.connections, '#3498db', 2);
+                } else if (this.currentView === 'mst') {
+                    this.drawConnections(this.mstConnections, '#e74c3c', 3);
+                } else if (this.currentView === 'shortest') {
+                    this.drawShortestPath();
+                }
+                
+                // Always draw stations last (on top)
+                this.drawStations();
+            }
+            
+            drawConnections(connections, color, width) {
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = width;
+                this.ctx.setLineDash([]);
+                
+                connections.forEach(conn => {
+                    const fromStation = this.stations[conn.from];
+                    const toStation = this.stations[conn.to];
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(fromStation.x, fromStation.y);
+                    this.ctx.lineTo(toStation.x, toStation.y);
+                    this.ctx.stroke();
+                    
+                    // Draw distance label
+                    const midX = (fromStation.x + toStation.x) / 2;
+                    const midY = (fromStation.y + toStation.y) / 2;
+                    
+                    this.ctx.fillStyle = '#2c3e50';
+                    this.ctx.font = 'bold 10px Arial';
+                    this.ctx.fillText(`${conn.distance}km`, midX - 15, midY - 5);
+                });
+            }
+            
+            drawShortestPath() {
+                if (this.shortestPath.length < 2) return;
+                
+                this.ctx.strokeStyle = '#f39c12';
+                this.ctx.lineWidth = 4;
+                this.ctx.setLineDash([]);
+                
+                for (let i = 0; i < this.shortestPath.length - 1; i++) {
+                    const fromStation = this.stations[this.shortestPath[i]];
+                    const toStation = this.stations[this.shortestPath[i + 1]];
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(fromStation.x, fromStation.y);
+                    this.ctx.lineTo(toStation.x, toStation.y);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawStations() {
+                this.stations.forEach(station => {
+                    // Draw station circle
+                    this.ctx.fillStyle = '#2ecc71';
+                    this.ctx.beginPath();
+                    this.ctx.arc(station.x, station.y, 8, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    // Draw station border
+                    this.ctx.strokeStyle = '#27ae60';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                    
+                    // Draw station name
+                    this.ctx.fillStyle = '#2c3e50';
+                    this.ctx.font = 'bold 11px Arial';
+                    this.ctx.fillText(station.name.replace('_', ' '), station.x + 12, station.y + 4);
+                });
+            }
+            
+            displayMSTResults() {
+                let result = '=== MINIMAL SPANNING TREE RESULTS ===\n\n';
+                result += 'Selected Railway Connections:\n';
+                
+                let totalLength = 0;
+                this.mstConnections.forEach(conn => {
+                    const fromName = this.stations[conn.from].name;
+                    const toName = this.stations[conn.to].name;
+                    result += `${fromName} <--> ${toName} | ${conn.distance} km\n`;
+                    totalLength += conn.distance;
+                });
+                
+                result += `\nTotal Network Length: ${totalLength.toFixed(1)} km\n`;
+                result += `Connections Used: ${this.mstConnections.length} out of ${this.connections.length}\n`;
+                result += `Cost Savings: ${(this.connections.reduce((sum, c) => sum + c.distance, 0) - totalLength).toFixed(1)} km`;
+                
+                document.getElementById('resultOutput').textContent = result;
+                this.updateStatus(`MST Algorithm completed - ${this.mstConnections.length} connections, ${totalLength.toFixed(1)} km total`);
+            }
+            
+            displayShortestPathResult(startId, endId, path) {
+                const startName = this.stations[startId].name;
+                const endName = this.stations[endId].name;
+                const totalDistance = this.shortestDistances[startId][endId];
+                
+                let result = `=== SHORTEST PATH: ${startName} → ${endName} ===\n\n`;
+                result += `Total Distance: ${totalDistance.toFixed(1)} km\n`;
+                result += `Route: `;
+                
+                path.forEach((stationId, index) => {
+                    result += this.stations[stationId].name;
+                    if (index < path.length - 1) result += ' → ';
+                });
+                
+                result += '\n\nSegment Details:\n';
+                for (let i = 0; i < path.length - 1; i++) {
+                    const from = path[i];
+                    const to = path[i + 1];
+                    const distance = this.distanceMatrix[from][to];
+                    result += `${this.stations[from].name} → ${this.stations[to].name}: ${distance} km\n`;
+                }
+                
+                document.getElementById('resultOutput').textContent = result;
+                this.updateStatus(`Shortest path found: ${totalDistance.toFixed(1)} km via ${path.length} stations`);
+            }
+            
+            updateButtons(activeId) {
+                document.querySelectorAll('.controls button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                if (activeId) {
+                    document.getElementById(activeId).classList.add('active');
+                }
+            }
+            
+            updateStatus(message) {
+                document.getElementById('statusBar').textContent = message;
+            }
+        }
+        
+        // Initialize the visualizer when page loads
+        window.addEventListener('load', () => {
+            new NigerianRailwayVisualizer();
+        });
+    </script>
+</body>
+</html>
